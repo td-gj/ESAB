@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, FC } from 'react';
-import Head from 'next/head';
 import { useVault } from '@/context/VaultContext';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
 import { HeirDashboard } from '@/components/HeirDashboard';
@@ -20,12 +19,8 @@ const Home: FC = () => {
 
   if (!connected) {
     return (
-      <>
-        <Head>
-          <meta name="base:app_id" content="697b0fdd7a620235c741a888" />
-        </Head>
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="card max-w-md text-center w-full">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="card max-w-md text-center w-full">
             <div className="mb-6">
               <img src="/logo.png" alt="LegacyVault" className="w-24 h-24 mx-auto mb-4 rounded-2xl" />
               <h1 className="text-3xl md:text-4xl font-bold mb-3 text-white">LegacyVault</h1>
@@ -64,7 +59,6 @@ const Home: FC = () => {
           </div>
         </div>
       </div>
-      </>
     );
   }
 
@@ -81,9 +75,6 @@ const Home: FC = () => {
 
   return (
     <>
-      <Head>
-        <meta name="base:app_id" content="697b0fdd7a620235c741a888" />
-      </Head>
       {/* Mode Switcher */}
       <div className="fixed top-20 right-4 z-40">
         <div className="bg-gray-800 rounded-lg p-1 flex gap-1 border border-gray-700 shadow-lg">

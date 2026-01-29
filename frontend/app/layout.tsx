@@ -1,9 +1,14 @@
-'use client';
-
+import { Metadata } from 'next';
 import './globals.css';
 import { VaultProvider } from '@/context/VaultContext';
 import { ConnectButton } from '@/components/ConnectButton';
 import { ReactNode } from 'react';
+
+export const metadata: Metadata = {
+  other: {
+    'base:app_id': '697b0fdd7a620235c741a888',
+  },
+};
 
 export default function RootLayout({
   children,
