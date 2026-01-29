@@ -11,13 +11,13 @@ export const metadata: Metadata = {
     'base:app_id': '697b0fdd7a620235c741a888',
     'fc:miniapp': JSON.stringify({
       version: "next",
-      imageUrl: "https://your-domain.vercel.app/logo.png",
+      imageUrl: "https://esab-base.vercel.app/logo.png",
       button: {
         title: "Open LegacyVault",
         action: {
           type: "launch_frame",
           name: "Launch LegacyVault",
-          url: "https://your-domain.vercel.app"
+          url: "https://esab-base.vercel.app"
         }
       }
     })

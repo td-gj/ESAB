@@ -1,26 +1,26 @@
 {
   "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjM2OTYxNCwidHlwZSI6ImF1dGgiLCJrZXkiOiIweDVDNGU4RmE4YTVhM0Q2RmU0YURFODdEMjNhN2Q4REI5ZkFhODJDMDkifQ",
+    "payload": "eyJkb21haW4iOiJlc2FiLWJhc2UudmVyY2VsLmFwcCJ9",
+    "signature": "AAAAAAAAAAAAAAAAyhG94Fl3s2MRZwKIYr4qFzl2yhEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiSCrVbLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAul7REO_bo9AFv8iC11NYrLu4WEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATQ_-6NvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAA7LjZ_qkSH5xvDVsnhw6J1z8H-xMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAIMfom_iLgOlMUj275IW01gzWYVi4VsKjETsrUVlM9ARDq0s4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABB8rh6N8zB_KKO1-CUL6C4Gh8zJ4Xt7Jhmbe8E4w1xlBlaSiUl-F8-jnpAkaLhv8fqN0ZKXlV2_QIbPCkkN2BN7xsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJJkkmSSZJI"
   },
   "miniapp": {
     "version": "1",
     "name": "LegacyVault",
-    "homeUrl": "https://your-domain.vercel.app",
-    "iconUrl": "https://your-domain.vercel.app/logo.png",
-    "splashImageUrl": "https://your-domain.vercel.app/logo.png",
+    "homeUrl": "https://esab-base.vercel.app",
+    "iconUrl": "https://esab-base.vercel.app/logo.png",
+    "splashImageUrl": "https://esab-base.vercel.app/logo.png",
     "splashBackgroundColor": "#1f2937",
     "subtitle": "Secure inheritance vault",
     "description": "Secure inheritance management through smart contracts on Base Network. ETH-only vault with automatic claim activation after inactivity period.",
     "screenshotUrls": [],
     "primaryCategory": "finance",
     "tags": ["finance", "inheritance", "vault", "ethereum"],
-    "heroImageUrl": "https://your-domain.vercel.app/logo.png",
+    "heroImageUrl": "https://esab-base.vercel.app/logo.png",
     "tagline": "Protect your digital legacy",
     "ogTitle": "LegacyVault",
     "ogDescription": "Secure inheritance management on Base Network",
-    "ogImageUrl": "https://your-domain.vercel.app/logo.png",
+    "ogImageUrl": "https://esab-base.vercel.app/logo.png",
     "noindex": false
   }
 }
