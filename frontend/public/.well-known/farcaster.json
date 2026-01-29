@@ -1,0 +1,26 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "LegacyVault",
+    "homeUrl": "https://your-domain.vercel.app",
+    "iconUrl": "https://your-domain.vercel.app/logo.png",
+    "splashImageUrl": "https://your-domain.vercel.app/logo.png",
+    "splashBackgroundColor": "#1f2937",
+    "subtitle": "Secure inheritance vault",
+    "description": "Secure inheritance management through smart contracts on Base Network. ETH-only vault with automatic claim activation after inactivity period.",
+    "screenshotUrls": [],
+    "primaryCategory": "finance",
+    "tags": ["finance", "inheritance", "vault", "ethereum"],
+    "heroImageUrl": "https://your-domain.vercel.app/logo.png",
+    "tagline": "Protect your digital legacy",
+    "ogTitle": "LegacyVault",
+    "ogDescription": "Secure inheritance management on Base Network",
+    "ogImageUrl": "https://your-domain.vercel.app/logo.png",
+    "noindex": false
+  }
+}

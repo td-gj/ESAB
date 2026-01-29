@@ -16,8 +16,6 @@ export const HeirDashboard: FC = () => {
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [ownerAddress, setOwnerAddress] = useState('');
-  const [addingVault, setAddingVault] = useState(false);
 
   const scanForVaults = useCallback(async () => {
     if (!contract || !account) return;
@@ -31,7 +29,8 @@ export const HeirDashboard: FC = () => {
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(0, currentBlock - 500000);
+        const deploymentBlock = 41441564; // Contract deployment block
+        const fromBlock = deploymentBlock;
         
         // HeirAdded(address indexed owner, address indexed heir, uint256 points, uint256 totalPoints)
         // Topic0 = keccak256("HeirAdded(address,address,uint256,uint256)")
@@ -185,43 +184,6 @@ export const HeirDashboard: FC = () => {
     return `${days}d ${hours}h`;
   }, []);
 
-  const handleAddVault = useCallback(async () => {
-    if (!contract || !account || !ownerAddress || !ethers.isAddress(ownerAddress)) {
-      alert('Please enter a valid address');
-      return;
-    }
-    
-    try {
-      setAddingVault(true);
-      
-      // Check if you are actually an heir
-      const heirInfo = await contract.getHeirInfo(ownerAddress, account);
-      
-      if (heirInfo.points <= 0) {
-        alert('You are not an heir of this vault');
-        return;
-      }
-      
-      // Save to localStorage
-      const savedOwners = localStorage.getItem(`heir_vaults_${account}`);
-      const owners = savedOwners ? JSON.parse(savedOwners) : [];
-      
-      if (!owners.includes(ownerAddress)) {
-        owners.push(ownerAddress);
-        localStorage.setItem(`heir_vaults_${account}`, JSON.stringify(owners));
-      }
-      
-      setOwnerAddress('');
-      await scanForVaults();
-      alert('✅ Vault added successfully!');
-    } catch (error) {
-      console.error('Error adding vault:', error);
-      alert('❌ Failed to add vault: ' + (error as any).message);
-    } finally {
-      setAddingVault(false);
-    }
-  }, [contract, account, ownerAddress, scanForVaults]);
-
   return (
     <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
@@ -241,30 +203,9 @@ export const HeirDashboard: FC = () => {
             </button>
           </div>
           <p className="text-gray-400 text-xs md:text-sm font-mono">{account?.slice(0, 10)}...{account?.slice(-8)}</p>
-        </div>
-
-        {/* Add Vault */}
-        <div className="card mb-4">
-          <h3 className="font-bold mb-2 text-white text-sm">Add Vault Owner Address</h3>
-          <p className="text-gray-400 text-xs mb-3">
-            💡 The vault owner should share their address with you. Click Refresh to auto-scan for vaults.
+          <p className="text-gray-400 text-xs mt-2">
+            💡 Vaults are automatically detected from blockchain events
           </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={ownerAddress}
-              onChange={(e) => setOwnerAddress(e.target.value)}
-              placeholder="0x..."
-              className="input-field flex-1"
-            />
-            <button 
-              onClick={handleAddVault} 
-              className="btn-primary px-4"
-              disabled={addingVault || !ownerAddress}
-            >
-              {addingVault ? '⏳' : '+'} Add
-            </button>
-          </div>
         </div>
 
         {scanning ? (
@@ -274,8 +215,8 @@ export const HeirDashboard: FC = () => {
           </div>
         ) : vaults.length === 0 ? (
           <div className="card text-center">
-            <p className="text-gray-300 mb-3">No vaults added yet</p>
-            <p className="text-gray-400 text-sm">Click Refresh to scan or add vault owner address above</p>
+            <p className="text-gray-300 mb-3">No vaults found</p>
+            <p className="text-gray-400 text-sm">Vaults will appear automatically when you are added as an heir</p>
           </div>
         ) : (
           <div className="space-y-4">

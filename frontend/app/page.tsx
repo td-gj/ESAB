@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, FC } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 import { useVault } from '@/context/VaultContext';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
 import { HeirDashboard } from '@/components/HeirDashboard';
@@ -9,6 +10,27 @@ const Home: FC = () => {
   const { connected, account, isOwner, loading, connect } = useVault();
   const [checkedRole, setCheckedRole] = useState(false);
   const [viewMode, setViewMode] = useState<'owner' | 'heir'>('owner');
+  const [miniAppUser, setMiniAppUser] = useState<any>(null);
+  const [isInMiniApp, setIsInMiniApp] = useState(false);
+
+  useEffect(() => {
+    const loadMiniAppContext = async () => {
+      try {
+        const miniAppStatus = await sdk.isInMiniApp();
+        setIsInMiniApp(miniAppStatus);
+        
+        if (miniAppStatus) {
+          const context = await sdk.context;
+          setMiniAppUser(context.user);
+          console.log('Mini App Context:', context);
+        }
+      } catch (error) {
+        console.error('Error loading mini app context:', error);
+      }
+    };
+    
+    loadMiniAppContext();
+  }, []);
 
   useEffect(() => {
     if (connected && account) {
@@ -27,6 +49,23 @@ const Home: FC = () => {
               <p className="text-gray-300 text-sm md:text-base leading-relaxed">
                 Secure inheritance management through smart contracts on Base Network
               </p>
+              {isInMiniApp && miniAppUser && (
+                <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="flex items-center justify-center gap-3">
+                    {miniAppUser.pfpUrl && (
+                      <img 
+                        src={miniAppUser.pfpUrl} 
+                        alt="Profile" 
+                        className="w-10 h-10 rounded-full"
+                      />
+                    )}
+                    <div className="text-left">
+                      <p className="text-white font-medium text-sm">{miniAppUser.displayName || miniAppUser.username}</p>
+                      <p className="text-gray-400 text-xs">@{miniAppUser.username}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           
           <div className="space-y-3 mb-6">

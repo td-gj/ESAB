@@ -5,8 +5,22 @@ import { ConnectButton } from '@/components/ConnectButton';
 import { ReactNode } from 'react';
 
 export const metadata: Metadata = {
+  title: 'LegacyVault',
+  description: 'Secure inheritance management through smart contracts on Base Network',
   other: {
     'base:app_id': '697b0fdd7a620235c741a888',
+    'fc:miniapp': JSON.stringify({
+      version: "next",
+      imageUrl: "https://your-domain.vercel.app/logo.png",
+      button: {
+        title: "Open LegacyVault",
+        action: {
+          type: "launch_frame",
+          name: "Launch LegacyVault",
+          url: "https://your-domain.vercel.app"
+        }
+      }
+    })
   },
 };
 
