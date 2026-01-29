@@ -194,7 +194,7 @@ export const OwnerDashboard: FC = () => {
         )}
 
         {activeTab === 'deposit' && <DepositSection contract={contract} account={account} onSuccess={fetchVaultData} />}
-        {activeTab === 'withdraw' && <WithdrawSection contract={contract} account={account} ethBalance={vaultData.ethBalance} onSuccess={fetchVaultData} />}
+        {activeTab === 'withdraw' && <WithdrawSection contract={contract} ethBalance={vaultData.ethBalance} onSuccess={fetchVaultData} />}
         {activeTab === 'heirs' && <HeirsManagement contract={contract} account={account} heirs={vaultData.heirs} onSuccess={fetchVaultData} />}
         {activeTab === 'settings' && <VaultSettings contract={contract} account={account} initialized={vaultData.initialized} onSuccess={fetchVaultData} />}
       </div>
@@ -249,7 +249,7 @@ const DepositSection = memo(({ contract, account, onSuccess }: { contract: any; 
   );
 });
 
-const WithdrawSection = memo(({ contract, account, ethBalance, onSuccess }: { contract: any; account: string | null; ethBalance: string; onSuccess: () => void }) => {
+const WithdrawSection = memo(({ contract, ethBalance, onSuccess }: { contract: any; ethBalance: string; onSuccess: () => void }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
