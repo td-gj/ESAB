@@ -2,17 +2,14 @@
 pragma solidity ^0.8.20;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title LegacyVault
- * @dev Multi-user inheritance vault (dead man's switch): Users create vaults, deposit assets, add heirs.
+ * @dev Multi-user inheritance vault (dead man's switch): Users create vaults, deposit ETH, add heirs.
  *      Heirs can claim shares if owner is inactive for a set period (30-365 days).
- *      Supports native ETH and ERC20 tokens.
+ *      Supports native ETH only.
  */
 contract LegacyVault is ReentrancyGuard {
-    using SafeERC20 for IERC20;
 
     // ============= Constants =============
     uint256 private constant MIN_INACTIVITY_PERIOD = 30 days;
@@ -34,7 +31,6 @@ contract LegacyVault is ReentrancyGuard {
         uint256 totalPoints;
         mapping(address => HeirInfo) heirs;
         mapping(address => uint256) heirIndex;
-        mapping(address => uint256) tokenBalances;
     }
 
     // ============= State Variables =============
@@ -45,11 +41,9 @@ contract LegacyVault is ReentrancyGuard {
     event VaultCreated(address indexed owner, uint256 inactivityPeriod);
     event DepositETH(address indexed owner, uint256 amount, uint256 newBalance);
     event WithdrawETH(address indexed owner, uint256 amount, uint256 newBalance);
-    event DepositERC20(address indexed owner, address indexed token, uint256 amount, uint256 newBalance);
-    event WithdrawERC20(address indexed owner, address indexed token, uint256 amount, uint256 newBalance);
     event HeirAdded(address indexed owner, address indexed heir, uint256 points, uint256 totalPoints);
     event HeirRemoved(address indexed owner, address indexed heir, uint256 points, uint256 totalPoints);
-    event Claimed(address indexed owner, address indexed heir, address indexed token, uint256 amount);
+    event Claimed(address indexed owner, address indexed heir, uint256 amount);
     event ActivityReset(address indexed owner, uint256 timestamp);
 
     // ============= Modifiers =============
@@ -94,19 +88,6 @@ contract LegacyVault is ReentrancyGuard {
         emit DepositETH(_vaultOwner, msg.value, vault.ethBalance);
     }
 
-    function depositERC20(address _vaultOwner, address token, uint256 amount) external onlyInitialized(_vaultOwner) {
-        require(token != address(0), "Invalid token");
-        require(amount > 0, "Amount must be > 0");
-
-        VaultData storage vault = vaults[_vaultOwner];
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-
-        vault.tokenBalances[token] += amount;
-        vault.lastActivity = block.timestamp;
-
-        emit DepositERC20(_vaultOwner, token, amount, vault.tokenBalances[token]);
-    }
-
     // ============= Withdrawal Functions =============
     function withdrawETH(uint256 amount) external onlyVaultOwner(msg.sender) onlyInitialized(msg.sender) {
         require(amount > 0, "Amount must be > 0");
@@ -121,21 +102,6 @@ contract LegacyVault is ReentrancyGuard {
         require(success, "ETH transfer failed");
 
         emit WithdrawETH(msg.sender, amount, vault.ethBalance);
-    }
-
-    function withdrawERC20(address token, uint256 amount) external onlyVaultOwner(msg.sender) onlyInitialized(msg.sender) {
-        require(token != address(0), "Invalid token");
-        require(amount > 0, "Amount must be > 0");
-
-        VaultData storage vault = vaults[msg.sender];
-        require(amount <= vault.tokenBalances[token], "Insufficient balance");
-
-        vault.tokenBalances[token] -= amount;
-        vault.lastActivity = block.timestamp;
-
-        IERC20(token).safeTransfer(msg.sender, amount);
-
-        emit WithdrawERC20(msg.sender, token, amount, vault.tokenBalances[token]);
     }
 
     // ============= Heir Management =============
@@ -181,6 +147,35 @@ contract LegacyVault is ReentrancyGuard {
         emit HeirRemoved(_vaultOwner, heir, points, vault.totalPoints);
     }
 
+    function updateHeirPoints(address _vaultOwner, address heir, uint256 newPoints) external onlyVaultOwner(_vaultOwner) onlyInitialized(_vaultOwner) {
+        require(heir != address(0), "Invalid heir");
+        require(newPoints > 0, "Points must be > 0");
+        
+        VaultData storage vault = vaults[_vaultOwner];
+        require(vault.heirIndex[heir] > 0, "Heir not found");
+        
+        uint256 oldPoints = vault.heirs[heir].points;
+        vault.totalPoints = vault.totalPoints - oldPoints + newPoints;
+        vault.heirs[heir].points = newPoints;
+        
+        vault.lastActivity = block.timestamp;
+        
+        emit HeirAdded(_vaultOwner, heir, newPoints, vault.totalPoints);
+    }
+
+    function updateInactivityPeriod(address _vaultOwner, uint256 _newPeriod) external onlyVaultOwner(_vaultOwner) onlyInitialized(_vaultOwner) {
+        require(
+            _newPeriod >= MIN_INACTIVITY_PERIOD && _newPeriod <= MAX_INACTIVITY_PERIOD,
+            "Invalid inactivity period"
+        );
+        
+        VaultData storage vault = vaults[_vaultOwner];
+        vault.inactivityPeriod = _newPeriod;
+        vault.lastActivity = block.timestamp;
+        
+        emit VaultCreated(_vaultOwner, _newPeriod);
+    }
+
     // ============= Ping Function =============
     function ping(address _vaultOwner) external onlyVaultOwner(_vaultOwner) onlyInitialized(_vaultOwner) {
         vaults[_vaultOwner].lastActivity = block.timestamp;
@@ -206,30 +201,7 @@ contract LegacyVault is ReentrancyGuard {
         (bool success, ) = msg.sender.call{value: share}("");
         require(success, "Transfer failed");
 
-        emit Claimed(_vaultOwner, msg.sender, address(0), share);
-    }
-
-    function claimERC20(address _vaultOwner, address token) external nonReentrant {
-        require(token != address(0), "Invalid token");
-
-        VaultData storage vault = vaults[_vaultOwner];
-        require(vault.initialized, "Vault not initialized");
-        require(block.timestamp >= vault.lastActivity + vault.inactivityPeriod, "Owner still active");
-
-        HeirInfo storage heirInfo = vault.heirs[msg.sender];
-        require(heirInfo.points > 0, "Not an heir");
-        require(!heirInfo.claimed, "Already claimed");
-
-        uint256 tokenBalance = vault.tokenBalances[token];
-        uint256 share = (tokenBalance * heirInfo.points) / vault.totalPoints;
-        require(share > 0, "No claimable amount");
-
-        heirInfo.claimed = true;
-        vault.tokenBalances[token] -= share;
-
-        IERC20(token).safeTransfer(msg.sender, share);
-
-        emit Claimed(_vaultOwner, msg.sender, token, share);
+        emit Claimed(_vaultOwner, msg.sender, share);
     }
 
     // ============= View Functions =============
@@ -263,10 +235,6 @@ contract LegacyVault is ReentrancyGuard {
     function getHeirInfo(address _owner, address heir) external view returns (uint256 points, bool claimed) {
         HeirInfo storage heirInfo = vaults[_owner].heirs[heir];
         return (heirInfo.points, heirInfo.claimed);
-    }
-
-    function getTokenBalance(address _owner, address token) external view returns (uint256) {
-        return vaults[_owner].tokenBalances[token];
     }
 
     function getVaultOwnersCount() external view returns (uint256) {

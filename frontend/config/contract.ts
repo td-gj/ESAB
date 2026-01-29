@@ -1,35 +1,18 @@
-export const LEGACY_VAULT_CONTRACT = '0xB8559B1Ed9e1F2D971424D1A52b05652B6Ad8938';
+export const LEGACY_VAULT_CONTRACT = '0xB6516d6C6d00f4Aa851C8179a0b1EFc09652E308';
 
 export const LEGACY_VAULT_ABI = [
   {
     inputs: [{ internalType: 'uint256', name: '_inactivityPeriod', type: 'uint256' }],
-    name: 'initialize',
+    name: 'createVault',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [],
+    inputs: [{ internalType: 'address', name: '_vaultOwner', type: 'address' }],
     name: 'depositETH',
     outputs: [],
     stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'ping',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { internalType: 'address', name: 'token', type: 'address' },
-      { internalType: 'uint256', name: 'amount', type: 'uint256' },
-    ],
-    name: 'depositERC20',
-    outputs: [],
-    stateMutability: 'nonpayable',
     type: 'function',
   },
   {
@@ -41,16 +24,7 @@ export const LEGACY_VAULT_ABI = [
   },
   {
     inputs: [
-      { internalType: 'address', name: 'token', type: 'address' },
-      { internalType: 'uint256', name: 'amount', type: 'uint256' },
-    ],
-    name: 'withdrawERC20',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
+      { internalType: 'address', name: '_vaultOwner', type: 'address' },
       { internalType: 'address', name: 'heir', type: 'address' },
       { internalType: 'uint256', name: 'points', type: 'uint256' },
     ],
@@ -60,63 +34,86 @@ export const LEGACY_VAULT_ABI = [
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'address', name: 'heir', type: 'address' }],
+    inputs: [
+      { internalType: 'address', name: '_vaultOwner', type: 'address' },
+      { internalType: 'address', name: 'heir', type: 'address' },
+    ],
     name: 'removeHeir',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: '_inactivityPeriod', type: 'uint256' }],
-    name: 'setInactivityPeriod',
+    inputs: [
+      { internalType: 'address', name: '_vaultOwner', type: 'address' },
+      { internalType: 'address', name: 'heir', type: 'address' },
+      { internalType: 'uint256', name: 'newPoints', type: 'uint256' },
+    ],
+    name: 'updateHeirPoints',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [],
+    inputs: [
+      { internalType: 'address', name: '_vaultOwner', type: 'address' },
+      { internalType: 'uint256', name: '_newPeriod', type: 'uint256' },
+    ],
+    name: 'updateInactivityPeriod',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '_vaultOwner', type: 'address' }],
+    name: 'ping',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: '_vaultOwner', type: 'address' }],
     name: 'claimETH',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'address', name: 'token', type: 'address' }],
-    name: 'claimERC20',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'isOwnerInactive',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+    inputs: [{ internalType: 'address', name: '_owner', type: 'address' }],
+    name: 'getVault',
+    outputs: [
+      { internalType: 'uint256', name: 'inactivityPeriod', type: 'uint256' },
+      { internalType: 'uint256', name: 'lastActivity', type: 'uint256' },
+      { internalType: 'bool', name: 'initialized', type: 'bool' },
+      { internalType: 'uint256', name: 'ethBalance', type: 'uint256' },
+      { internalType: 'uint256', name: 'totalPoints', type: 'uint256' },
+      { internalType: 'uint256', name: 'heirsCount', type: 'uint256' },
+    ],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [],
+    inputs: [{ internalType: 'address', name: '_owner', type: 'address' }],
     name: 'getHeirsCount',
     outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ internalType: 'uint256', name: 'index', type: 'uint256' }],
+    inputs: [
+      { internalType: 'address', name: '_owner', type: 'address' },
+      { internalType: 'uint256', name: 'index', type: 'uint256' },
+    ],
     name: 'getHeirAt',
     outputs: [{ internalType: 'address', name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'getAllHeirs',
-    outputs: [{ internalType: 'address[]', name: '', type: 'address[]' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'address', name: 'heir', type: 'address' }],
+    inputs: [
+      { internalType: 'address', name: '_owner', type: 'address' },
+      { internalType: 'address', name: 'heir', type: 'address' },
+    ],
     name: 'getHeirInfo',
     outputs: [
       { internalType: 'uint256', name: 'points', type: 'uint256' },
@@ -124,74 +121,6 @@ export const LEGACY_VAULT_ABI = [
     ],
     stateMutability: 'view',
     type: 'function',
-  },
-  {
-    inputs: [{ internalType: 'address', name: 'heir', type: 'address' }],
-    name: 'getClaimableETH',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'ethBalance',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'owner',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'initialized',
-    outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'inactivityPeriod',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'lastActivity',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'getTimeUntilInactive',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'depositor', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-      { indexed: false, internalType: 'uint256', name: 'newBalance', type: 'uint256' },
-    ],
-    name: 'DepositETH',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: 'address', name: 'heir', type: 'address' },
-      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
-    ],
-    name: 'Claimed',
-    type: 'event',
   },
 ];
 

@@ -74,9 +74,9 @@ export const VaultProvider: FC<{ children: ReactNode }> = ({ children }) => {
       setContract(newContract);
       setConnected(true);
 
-      // Check if user is owner
-      const owner = await newContract.owner();
-      setIsOwner(owner.toLowerCase() === selectedAccount.toLowerCase());
+      // Check if user has a vault
+      const vaultData = await newContract.getVault(selectedAccount);
+      setIsOwner(vaultData.initialized);
     } catch (error) {
       console.error('Connection error:', error);
     } finally {
@@ -146,9 +146,9 @@ export const VaultProvider: FC<{ children: ReactNode }> = ({ children }) => {
           setContract(newContract);
           setConnected(true);
 
-          // Check if user is owner
-          const owner = await newContract.owner();
-          setIsOwner(owner.toLowerCase() === selectedAccount.toLowerCase());
+          // Check if user has a vault
+          const vaultData = await newContract.getVault(selectedAccount);
+          setIsOwner(vaultData.initialized);
         }
       } catch (error) {
         console.error('Auto-connect error:', error);

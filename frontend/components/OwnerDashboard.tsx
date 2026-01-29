@@ -15,6 +15,7 @@ interface VaultData {
   ethBalance: string;
   inactivityPeriod: number | bigint;
   heirs: HeirData[];
+  tokens: { address: string; balance: string; symbol: string; name: string; decimals: number }[];
 }
 
 export const OwnerDashboard: FC = () => {
@@ -24,16 +25,17 @@ export const OwnerDashboard: FC = () => {
     ethBalance: '0',
     inactivityPeriod: 0,
     heirs: [],
+    tokens: [],
   });
   const [loading, setLoading] = useState(false);
   const [pingLoading, setPingLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'deposit' | 'withdraw' | 'heirs' | 'settings'>('overview');
 
   const handlePing = useCallback(async () => {
-    if (!contract) return;
+    if (!contract || !account) return;
     try {
       setPingLoading(true);
-      const tx = await contract.ping();
+      const tx = await contract.ping(account);
       await tx.wait();
       alert('✅ Vault pinged! Activity timer reset.');
       fetchVaultData();
@@ -43,38 +45,35 @@ export const OwnerDashboard: FC = () => {
     } finally {
       setPingLoading(false);
     }
-  }, [contract]);
+  }, [contract, account]);
 
   const fetchVaultData = useCallback(async () => {
-    if (!contract) return;
+    if (!contract || !account) return;
     try {
       setLoading(true);
-      const [initialized, ethBalance, inactivityPeriod, heirsCount] = await Promise.all([
-        contract.initialized(),
-        contract.ethBalance(),
-        contract.inactivityPeriod(),
-        contract.getHeirsCount(),
-      ]);
+      const vault = await contract.getVault(account);
+      const heirsCount = vault.heirsCount;
 
       const heirs: HeirData[] = [];
       for (let i = 0; i < heirsCount; i++) {
-        const heir = await contract.getHeirAt(i);
-        const info = await contract.getHeirInfo(heir);
-        heirs.push({ address: heir, points: info.points.toString(), claimed: info.claimed });
+        const heirAddress = await contract.getHeirAt(account, i);
+        const info = await contract.getHeirInfo(account, heirAddress);
+        heirs.push({ address: heirAddress, points: info.points.toString(), claimed: info.claimed });
       }
 
       setVaultData({
-        initialized,
-        ethBalance: ethers.formatEther(ethBalance),
-        inactivityPeriod,
+        initialized: vault.initialized,
+        ethBalance: ethers.formatEther(vault.ethBalance),
+        inactivityPeriod: vault.inactivityPeriod,
         heirs,
+        tokens: [],
       });
     } catch (error) {
       console.error('Error fetching vault data:', error);
     } finally {
       setLoading(false);
     }
-  }, [contract]);
+  }, [contract, account]);
 
   useEffect(() => {
     if (contract && isOwner) {
@@ -82,21 +81,20 @@ export const OwnerDashboard: FC = () => {
     }
   }, [contract, isOwner]);
 
-  if (!isOwner) {
-    return <div className="p-4 text-center text-red-500">Only vault owner can access this</div>;
-  }
-
   // Show initialization required message
   if (!vaultData.initialized) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 p-4 md:p-8">
-        <div className="max-w-2xl mx-auto">
+      <div className="min-h-screen p-4 md:p-6">
+        <div className="max-w-xl mx-auto">
           <div className="card">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">⚠️ Initialize Vault First</h1>
-            <p className="text-gray-600 mb-6">
-              Your vault is not initialized yet. You must set an inactivity period (30-365 days) before you can use any features.
-            </p>
-            <VaultSettings contract={contract} initialized={vaultData.initialized} onSuccess={fetchVaultData} />
+            <div className="text-center mb-4">
+              <div className="text-5xl mb-3">⚠️</div>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">Create Your Vault</h1>
+              <p className="text-gray-300 text-sm md:text-base">
+                Set your inactivity period (30-365 days) to get started
+              </p>
+            </div>
+            <VaultSettings contract={contract} account={account} initialized={vaultData.initialized} onSuccess={fetchVaultData} />
           </div>
         </div>
       </div>
@@ -104,39 +102,46 @@ export const OwnerDashboard: FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-500 p-4 md:p-8">
+    <div className="min-h-screen p-4 md:p-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="card mb-6">
-          <div className="flex justify-between items-start gap-4 mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">LegacyVault Owner</h1>
-              <p className="text-gray-600">Account: {account?.slice(0, 6)}...{account?.slice(-4)}</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Status: {vaultData.initialized ? '✅ Initialized' : '❌ Not Initialized'}
-              </p>
+        <div className="card mb-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">👤</span>
+                <h1 className="text-xl md:text-2xl font-bold text-white">Owner Dashboard</h1>
+              </div>
+              <p className="text-gray-400 text-xs md:text-sm font-mono">{account?.slice(0, 10)}...{account?.slice(-8)}</p>
+              <div className="flex items-center gap-2 mt-2">
+                {vaultData.initialized ? (
+                  <span className="text-xs bg-green-600 bg-opacity-40 text-green-200 px-2 py-1 rounded-lg">✓ Active</span>
+                ) : (
+                  <span className="text-xs bg-red-600 bg-opacity-40 text-red-200 px-2 py-1 rounded-lg">⚠ Not Initialized</span>
+                )}
+              </div>
             </div>
             {vaultData.initialized && (
               <button
                 onClick={handlePing}
-                className="btn-primary whitespace-nowrap"
+                className="btn-primary whitespace-nowrap text-sm w-full md:w-auto"
                 disabled={pingLoading}
-                title="Reset inactivity timer (Dead Man's Switch ping)"
+                title="Reset inactivity timer"
               >
-                {pingLoading ? '🔄 Pinging...' : '📍 Ping Now'}
+                {pingLoading ? '⏳ Pinging...' : '📡 Ping Vault'}
               </button>
             )}
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="card mb-6">
-          <div className="flex gap-2 flex-wrap">
+        <div className="card mb-4 overflow-x-auto">
+          <div className="flex gap-2 min-w-max">
             {(['overview', 'deposit', 'withdraw', 'heirs', 'settings'] as const).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg font-semibold transition ${
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-4 py-2 rounded-xl font-semibold transition-all text-sm md:text-base whitespace-nowrap ${
                   activeTab === tab ? 'btn-primary' : 'btn-secondary'
                 }`}
               >
@@ -149,51 +154,63 @@ export const OwnerDashboard: FC = () => {
         {/* Content */}
         {activeTab === 'overview' && (
           <div className="card">
-            <h2 className="text-xl font-bold mb-4">Vault Overview</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">ETH Balance</p>
-                <p className="text-2xl font-bold text-blue-600">{vaultData.ethBalance}</p>
+            <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+              <span>📊</span> Vault Overview
+            </h2>
+            
+            {/* Explanation */}
+            <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <p className="text-sm text-gray-300 leading-relaxed">
+                <span className="font-semibold text-white">LegacyVault</span> protects your assets and automatically distributes them to your heirs if you remain inactive for a set period. Regularly click "Ping Activity" to confirm you're still active.
+              </p>
+            </div>
+            
+            {/* ETH Balance */}
+            <div className="bg-blue-600 p-4 rounded-lg mb-3 border border-blue-700">
+              <p className="text-blue-100 text-sm mb-1 flex items-center gap-2">
+                <img src="/eth.svg" alt="ETH" className="w-4 h-4" /> ETH Balance
+              </p>
+              <p className="text-2xl font-bold text-white">{parseFloat(vaultData.ethBalance).toFixed(6)} ETH</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-purple-600 p-4 rounded-lg border border-purple-700">
+                <p className="text-purple-100 text-sm mb-1">👥 Total Heirs</p>
+                <p className="text-xl font-bold text-white">{vaultData.heirs.length}</p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Total Heirs</p>
-                <p className="text-2xl font-bold text-green-600">{vaultData.heirs.length}</p>
-              </div>
-              <div className="bg-orange-50 p-4 rounded-lg col-span-2">
-                <p className="text-gray-600 text-sm">Inactivity Period</p>
-                <p className="text-xl font-bold text-orange-600">
-                  {(Number(vaultData.inactivityPeriod) / (24 * 3600)).toFixed(0)} days
+              <div className="bg-orange-600 p-4 rounded-lg border border-orange-700">
+                <p className="text-orange-100 text-sm mb-1">⏱️ Inactivity</p>
+                <p className="text-xl font-bold text-white">
+                  {(Number(vaultData.inactivityPeriod) / (24 * 3600)).toFixed(0)}d
                 </p>
               </div>
             </div>
+
             <button onClick={fetchVaultData} className="btn-primary mt-4 w-full" disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? '⏳ Refreshing...' : '🔄 Refresh Data'}
             </button>
           </div>
         )}
 
-        {activeTab === 'deposit' && <DepositSection contract={contract} onSuccess={fetchVaultData} />}
-        {activeTab === 'withdraw' && <WithdrawSection contract={contract} ethBalance={vaultData.ethBalance} onSuccess={fetchVaultData} />}
-        {activeTab === 'heirs' && <HeirsManagement contract={contract} heirs={vaultData.heirs} onSuccess={fetchVaultData} />}
-        {activeTab === 'settings' && <VaultSettings contract={contract} initialized={vaultData.initialized} onSuccess={fetchVaultData} />}
+        {activeTab === 'deposit' && <DepositSection contract={contract} account={account} onSuccess={fetchVaultData} />}
+        {activeTab === 'withdraw' && <WithdrawSection contract={contract} account={account} ethBalance={vaultData.ethBalance} onSuccess={fetchVaultData} />}
+        {activeTab === 'heirs' && <HeirsManagement contract={contract} account={account} heirs={vaultData.heirs} onSuccess={fetchVaultData} />}
+        {activeTab === 'settings' && <VaultSettings contract={contract} account={account} initialized={vaultData.initialized} onSuccess={fetchVaultData} />}
       </div>
     </div>
   );
 };
 
-const DepositSection = memo(({ contract, onSuccess }: { contract: any; onSuccess: () => void }) => {
+const DepositSection = memo(({ contract, account, onSuccess }: { contract: any; account: string | null; onSuccess: () => void }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [depositType, setDepositType] = useState<'eth' | 'erc20'>('eth');
-  const [tokenAddress, setTokenAddress] = useState('');
-  const [tokenInfo, setTokenInfo] = useState<{ name: string; symbol: string; decimals: number } | null>(null);
-  const [tokenLoading, setTokenLoading] = useState(false);
 
   const handleDepositETH = async () => {
-    if (!contract || !amount) return;
+    if (!contract || !amount || !account) return;
     try {
       setLoading(true);
-      const tx = await contract.depositETH({ value: ethers.parseEther(amount) });
+      const tx = await contract.depositETH(account, { value: ethers.parseEther(amount) });
       await tx.wait();
       setAmount('');
       alert('Deposit successful!');
@@ -206,227 +223,35 @@ const DepositSection = memo(({ contract, onSuccess }: { contract: any; onSuccess
     }
   };
 
-  const fetchTokenInfo = useCallback(async (tokenAddr: string) => {
-    if (!ethers.isAddress(tokenAddr)) {
-      setTokenInfo(null);
-      return;
-    }
-    try {
-      setTokenLoading(true);
-      const erc20ABI = [
-        'function name() public view returns (string)',
-        'function symbol() public view returns (string)',
-        'function decimals() public view returns (uint8)',
-      ];
-      
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const token = new ethers.Contract(tokenAddr, erc20ABI, provider);
-      
-      const [name, symbol, decimals] = await Promise.all([
-        token.name(),
-        token.symbol(),
-        token.decimals(),
-      ]);
-      
-      setTokenInfo({ name, symbol, decimals: Number(decimals) });
-    } catch (error) {
-      setTokenInfo(null);
-    } finally {
-      setTokenLoading(false);
-    }
-  }, []);
-
-  const handleDepositERC20 = async () => {
-    if (!contract || !amount || !tokenAddress || !tokenInfo) return;
-    try {
-      setLoading(true);
-      const tokenAmount = ethers.parseUnits(amount, tokenInfo.decimals);
-      const tx = await contract.depositERC20(tokenAddress, tokenAmount);
-      await tx.wait();
-      setAmount('');
-      setTokenAddress('');
-      setTokenInfo(null);
-      alert('Token deposit successful!');
-      onSuccess();
-    } catch (error: any) {
-      console.error('Deposit failed:', error);
-      // Better error messages
-      let errorMsg = 'Deposit failed';
-      if (error.reason) {
-        errorMsg += ': ' + error.reason;
-      } else if (error.message) {
-        errorMsg += ': ' + error.message;
-      }
-      alert(errorMsg + '\n\nMake sure you approved the token first!');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Deposit Assets</h2>
-      
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => {
-            setDepositType('eth');
-            setTokenInfo(null);
-          }}
-          className={`px-4 py-2 rounded-lg font-semibold ${
-            depositType === 'eth' ? 'btn-primary' : 'btn-secondary'
-          }`}
-        >
-          ETH
-        </button>
-        <button
-          onClick={() => setDepositType('erc20')}
-          className={`px-4 py-2 rounded-lg font-semibold ${
-            depositType === 'erc20' ? 'btn-primary' : 'btn-secondary'
-          }`}
-        >
-          ERC20 Token
-        </button>
-      </div>
+      <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+        <span>💰</span> Deposit ETH
+      </h2>
 
-      {depositType === 'eth' ? (
-        <>
-          <input
-            type="number"
-            placeholder="Amount (ETH)"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="input-field mb-4"
-            step="0.001"
-          />
-          <button onClick={handleDepositETH} className="btn-primary w-full" disabled={loading || !amount}>
-            {loading ? 'Processing...' : 'Deposit ETH'}
-          </button>
-        </>
-      ) : (
-        <>
-          {/* Token Address Input */}
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Token Contract Address</label>
-            <input
-              type="text"
-              placeholder="0x..."
-              value={tokenAddress}
-              onChange={(e) => {
-                setTokenAddress(e.target.value);
-                if (e.target.value.length > 0) {
-                  fetchTokenInfo(e.target.value);
-                } else {
-                  setTokenInfo(null);
-                }
-              }}
-              className="input-field"
-            />
-          </div>
-
-          {/* Token Info Display */}
-          {tokenLoading && (
-            <div className="bg-blue-50 p-3 rounded-lg mb-4 text-center text-sm text-blue-600">
-              Loading token info...
-            </div>
-          )}
-
-          {tokenInfo && (
-            <div className="bg-green-50 p-4 rounded-lg mb-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-gray-800">{tokenInfo.name}</p>
-                  <p className="text-sm text-gray-600">Symbol: {tokenInfo.symbol}</p>
-                  <p className="text-xs text-gray-500">Decimals: {tokenInfo.decimals}</p>
-                </div>
-                <span className="text-2xl">✅</span>
-              </div>
-            </div>
-          )}
-
-          {/* Amount Input */}
-          {tokenInfo && (
-            <>
-              <div className="mb-4">
-                <label className="block text-gray-700 font-semibold mb-2">
-                  Amount ({tokenInfo.symbol})
-                </label>
-                <input
-                  type="number"
-                  placeholder={`Enter amount (${tokenInfo.decimals} decimals)`}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="input-field"
-                  step="0.000001"
-                />
-              </div>
-
-              <button
-                onClick={handleDepositERC20}
-                className="btn-primary w-full mb-3"
-                disabled={loading || !amount || !tokenInfo}
-              >
-                {loading ? 'Processing...' : `Deposit ${tokenInfo.symbol}`}
-              </button>
-            </>
-          )}
-
-          {!tokenInfo && tokenAddress.length > 0 && !tokenLoading && (
-            <div className="bg-red-50 p-3 rounded-lg text-sm text-red-600 mb-4">
-              Invalid token address or token not found
-            </div>
-          )}
-
-          <div className="bg-yellow-50 p-3 rounded-lg text-xs text-yellow-800">
-            ⚠️ <strong>Important:</strong> Before depositing, you must approve this contract to spend your tokens.
-            Use your token's contract or a DEX interface to approve.
-          </div>
-        </>
-      )}
+      <label className="block text-gray-300 text-sm font-semibold mb-2">Amount (ETH)</label>
+      <input
+        type="number"
+        placeholder="0.00"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        className="input-field mb-4"
+        step="0.001"
+      />
+      <button onClick={handleDepositETH} className="btn-primary w-full" disabled={loading || !amount}>
+        {loading ? '⏳ Processing...' : (
+          <span className="flex items-center justify-center gap-2">
+            <img src="/eth.svg" alt="ETH" className="w-4 h-4" /> Deposit ETH
+          </span>
+        )}
+      </button>
     </div>
   );
 });
 
-const WithdrawSection = memo(({ contract, ethBalance, onSuccess }: { contract: any; ethBalance: string; onSuccess: () => void }) => {
+const WithdrawSection = memo(({ contract, account, ethBalance, onSuccess }: { contract: any; account: string | null; ethBalance: string; onSuccess: () => void }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [withdrawType, setWithdrawType] = useState<'eth' | 'erc20'>('eth');
-  const [tokenAddress, setTokenAddress] = useState('');
-  const [tokenInfo, setTokenInfo] = useState<{ name: string; symbol: string; decimals: number; balance: string } | null>(null);
-  const [tokenLoading, setTokenLoading] = useState(false);
-
-  const fetchTokenInfo = useCallback(async () => {
-    if (!contract || !tokenAddress || !ethers.isAddress(tokenAddress)) return;
-
-    try {
-      setTokenLoading(true);
-      const erc20 = new ethers.Contract(
-        tokenAddress,
-        ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)'],
-        contract.runner
-      );
-
-      const [name, symbol, decimals] = await Promise.all([
-        erc20.name(),
-        erc20.symbol(),
-        erc20.decimals(),
-      ]);
-
-      const balance = await contract.tokenBalances(tokenAddress);
-      setTokenInfo({ name, symbol, decimals, balance: ethers.formatUnits(balance, decimals) });
-    } catch (error) {
-      setTokenInfo(null);
-    } finally {
-      setTokenLoading(false);
-    }
-  }, [contract, tokenAddress]);
-
-  useEffect(() => {
-    if (tokenAddress.length > 0) {
-      fetchTokenInfo();
-    }
-  }, [tokenAddress, fetchTokenInfo]);
 
   const handleWithdrawETH = async () => {
     if (!contract || !amount) return;
@@ -446,153 +271,100 @@ const WithdrawSection = memo(({ contract, ethBalance, onSuccess }: { contract: a
     }
   };
 
-  const handleWithdrawERC20 = async () => {
-    if (!contract || !amount || !tokenAddress || !tokenInfo) return;
-    try {
-      setLoading(true);
-      const tokenAmount = ethers.parseUnits(amount, tokenInfo.decimals);
-      const tx = await contract.withdrawERC20(tokenAddress, tokenAmount);
-      await tx.wait();
-      setAmount('');
-      setTokenAddress('');
-      setTokenInfo(null);
-      alert('Token withdrawal successful!');
-      onSuccess();
-    } catch (error: any) {
-      console.error('Withdrawal failed:', error);
-      alert('Withdrawal failed: ' + (error.reason || error.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Withdraw Assets</h2>
+      <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+        <span>💸</span> Withdraw ETH
+      </h2>
       
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => {
-            setWithdrawType('eth');
-            setTokenInfo(null);
-          }}
-          className={`px-4 py-2 rounded-lg font-semibold ${
-            withdrawType === 'eth' ? 'btn-primary' : 'btn-secondary'
-          }`}
-        >
-          ETH
-        </button>
-        <button
-          onClick={() => setWithdrawType('erc20')}
-          className={`px-4 py-2 rounded-lg font-semibold ${
-            withdrawType === 'erc20' ? 'btn-primary' : 'btn-secondary'
-          }`}
-        >
-          ERC20
-        </button>
+      <div className="mb-4">
+        <label className="block text-gray-300 text-sm font-semibold mb-2">Available Balance</label>
+        <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+          <p className="text-2xl font-bold text-white">{parseFloat(ethBalance).toFixed(6)} ETH</p>
+        </div>
+        
+        <label className="block text-gray-300 text-sm font-semibold mb-2">Withdrawal Amount</label>
+        <input
+          type="number"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="input-field mb-2"
+          step="0.000001"
+          max={ethBalance}
+        />
       </div>
 
-      {withdrawType === 'eth' && (
-        <>
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Available Balance</label>
-            <p className="text-lg font-bold text-green-600 mb-4">{ethBalance} ETH</p>
-            
-            <label className="block text-gray-700 font-semibold mb-2">Withdrawal Amount (ETH)</label>
-            <input
-              type="number"
-              placeholder="Amount in ETH"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="input-field mb-2"
-              step="0.000001"
-              max={ethBalance}
-            />
-          </div>
-
-          <button onClick={handleWithdrawETH} className="btn-primary w-full" disabled={loading || !amount}>
-            {loading ? 'Processing...' : 'Withdraw ETH'}
-          </button>
-        </>
-      )}
-
-      {withdrawType === 'erc20' && (
-        <>
-          <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Token Address</label>
-            <input
-              type="text"
-              placeholder="0x..."
-              value={tokenAddress}
-              onChange={(e) => setTokenAddress(e.target.value)}
-              className="input-field mb-2"
-            />
-          </div>
-
-          {tokenLoading && <p className="text-gray-600 mb-4">Loading token info...</p>}
-
-          {tokenInfo && (
-            <>
-              <div className="bg-blue-50 p-3 rounded-lg mb-4">
-                <p className="text-sm text-gray-700">
-                  <strong>{tokenInfo.name}</strong> ({tokenInfo.symbol})
-                </p>
-                <p className="text-sm text-gray-600">Balance: {tokenInfo.balance} {tokenInfo.symbol}</p>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700 font-semibold mb-2">Withdrawal Amount</label>
-                <input
-                  type="number"
-                  placeholder={`Amount in ${tokenInfo.symbol}`}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="input-field"
-                  step="0.000001"
-                  max={tokenInfo.balance}
-                />
-              </div>
-
-              <button
-                onClick={handleWithdrawERC20}
-                className="btn-primary w-full"
-                disabled={loading || !amount || !tokenInfo}
-              >
-                {loading ? 'Processing...' : `Withdraw ${tokenInfo.symbol}`}
-              </button>
-            </>
-          )}
-
-          {!tokenInfo && tokenAddress.length > 0 && !tokenLoading && (
-            <div className="bg-red-50 p-3 rounded-lg text-sm text-red-600 mb-4">
-              Invalid token address or token not found
-            </div>
-          )}
-        </>
-      )}
+      <button onClick={handleWithdrawETH} className="btn-primary w-full" disabled={loading || !amount}>
+        {loading ? '⏳ Processing...' : (
+          <span className="flex items-center justify-center gap-2">
+            <img src="/eth.svg" alt="ETH" className="w-4 h-4" /> Withdraw ETH
+          </span>
+        )}
+      </button>
     </div>
   );
 });
 
-const HeirsManagement = memo(({ contract, heirs, onSuccess }: { contract: any; heirs: any[]; onSuccess: () => void }) => {
+const HeirsManagement = memo(({ contract, account, heirs, onSuccess }: { contract: any; account: string | null; heirs: any[]; onSuccess: () => void }) => {
   const [heirAddress, setHeirAddress] = useState('');
   const [points, setPoints] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingHeir, setEditingHeir] = useState<string | null>(null);
+  const [editPoints, setEditPoints] = useState('');
+
+  const totalPoints = heirs.reduce((sum, heir) => sum + Number(heir.points), 0);
 
   const handleAddHeir = async () => {
-    if (!contract || !heirAddress || !points) return;
+    if (!contract || !heirAddress || !points || !account) return;
     try {
       setLoading(true);
-      const tx = await contract.addHeir(heirAddress, ethers.parseUnits(points, 0));
+      const tx = await contract.addHeir(account, heirAddress, ethers.parseUnits(points, 0));
       await tx.wait();
       setHeirAddress('');
       setPoints('');
-      alert('Heir added successfully!');
+      alert('✅ Heir added successfully!');
       onSuccess();
     } catch (error) {
       console.error('Add heir failed:', error);
-      alert('Add heir failed');
+      alert('❌ Add heir failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveHeir = async (heirAddr: string) => {
+    if (!contract || !account) return;
+    if (!confirm(`Are you sure you want to remove heir ${heirAddr}?`)) return;
+    
+    try {
+      setLoading(true);
+      const tx = await contract.removeHeir(account, heirAddr);
+      await tx.wait();
+      alert('✅ Heir removed successfully!');
+      onSuccess();
+    } catch (error) {
+      console.error('Remove heir failed:', error);
+      alert('❌ Remove heir failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePoints = async (heirAddr: string) => {
+    if (!contract || !account || !editPoints) return;
+    
+    try {
+      setLoading(true);
+      const tx = await contract.updateHeirPoints(account, heirAddr, ethers.parseUnits(editPoints, 0));
+      await tx.wait();
+      setEditingHeir(null);
+      setEditPoints('');
+      alert('✅ Heir points updated successfully!');
+      onSuccess();
+    } catch (error) {
+      console.error('Update points failed:', error);
+      alert('❌ Update points failed');
     } finally {
       setLoading(false);
     }
@@ -600,63 +372,176 @@ const HeirsManagement = memo(({ contract, heirs, onSuccess }: { contract: any; h
 
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Manage Heirs</h2>
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Heir address"
-          value={heirAddress}
-          onChange={(e) => setHeirAddress(e.target.value)}
-          className="input-field mb-2"
-        />
-        <input
-          type="number"
-          placeholder="Points"
-          value={points}
-          onChange={(e) => setPoints(e.target.value)}
-          className="input-field mb-2"
-        />
+      <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+        <span>👥</span> Manage Heirs
+      </h2>
+      
+      {/* Distribution Points Explanation */}
+      <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+        <p className="text-sm text-gray-300 leading-relaxed">
+          <span className="font-semibold text-white">Distribution Points</span> determine the proportion of asset distribution. For example: if 2 heirs have 30 and 70 points, they will receive 30% and 70% of total assets.
+        </p>
+      </div>
+      
+      <div className="space-y-3 mb-4">
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">Heir Address</label>
+          <input
+            type="text"
+            placeholder="0x..."
+            value={heirAddress}
+            onChange={(e) => setHeirAddress(e.target.value)}
+            className="input-field"
+          />
+        </div>
+        <div>
+          <label className="block text-gray-300 text-sm font-semibold mb-2">Distribution Points</label>
+          <input
+            type="number"
+            placeholder="e.g., 50"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+            className="input-field"
+          />
+        </div>
         <button onClick={handleAddHeir} className="btn-primary w-full" disabled={loading || !heirAddress || !points}>
-          {loading ? 'Adding...' : 'Add Heir'}
+          {loading ? '⏳ Adding...' : '➕ Add Heir'}
         </button>
       </div>
 
       <div>
-        <h3 className="font-bold mb-2">Current Heirs ({heirs.length})</h3>
-        <div className="space-y-2">
-          {heirs.map((heir) => (
-            <div key={heir.address} className="bg-gray-100 p-3 rounded flex justify-between items-center">
-              <div>
-                <p className="font-mono text-sm">{heir.address.slice(0, 6)}...{heir.address.slice(-4)}</p>
-                <p className="text-xs text-gray-600">Points: {heir.points}</p>
-              </div>
-              <span className={`text-xs px-2 py-1 rounded ${heir.claimed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                {heir.claimed ? 'Claimed' : 'Active'}
-              </span>
+        <h3 className="font-bold mb-3 text-white flex items-center gap-2">
+          <span>📋</span> Current Heirs ({heirs.length})
+        </h3>
+        {heirs.length === 0 ? (
+          <div className="space-y-3">
+            <div className="bg-gray-700 bg-opacity-30 backdrop-blur-sm p-4 rounded-xl text-center text-gray-300 text-sm border border-gray-600 border-opacity-30">
+              No heirs added yet
             </div>
-          ))}
-        </div>
+            <div className="bg-blue-600 bg-opacity-20 p-4 rounded-xl border border-blue-500 border-opacity-40">
+              <p className="text-blue-200 text-sm leading-relaxed mb-3">
+                💡 <span className="font-semibold">If you don't have an heir yet,</span> I can help you! I will make your assets useful.
+              </p>
+              <div className="bg-gray-800 bg-opacity-50 p-3 rounded-lg">
+                <p className="text-xs text-gray-400 mb-1">My wallet address:</p>
+                <p className="font-mono text-sm text-blue-300 break-all">0xBe98454B86E30859c823F3556592a8e273666666</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {heirs.map((heir, idx) => {
+              const percentage = totalPoints > 0 ? ((Number(heir.points) / totalPoints) * 100).toFixed(1) : '0';
+              const isEditing = editingHeir === heir.address;
+              
+              return (
+                <div key={heir.address} className="bg-gray-700 bg-opacity-40 backdrop-blur-sm p-4 rounded-xl border border-gray-600 border-opacity-30">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-white font-semibold">#{idx + 1}</span>
+                        <p className="font-mono text-xs md:text-sm text-gray-300 truncate">{heir.address}</p>
+                      </div>
+                      {isEditing ? (
+                        <div className="flex gap-2 items-center mt-2">
+                          <input
+                            type="number"
+                            value={editPoints}
+                            onChange={(e) => setEditPoints(e.target.value)}
+                            placeholder="New points"
+                            className="input-field text-sm py-1 px-2"
+                          />
+                          <button
+                            onClick={() => handleUpdatePoints(heir.address)}
+                            disabled={loading || !editPoints}
+                            className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-500"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingHeir(null);
+                              setEditPoints('');
+                            }}
+                            className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <p className="text-xs text-gray-400">🎯 Points: {heir.points}</p>
+                          <p className="text-xs font-bold text-blue-300">📊 {percentage}%</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 items-start ml-2">
+                      <span className={`text-xs px-2 py-1 rounded-lg whitespace-nowrap ${
+                        heir.claimed 
+                          ? 'bg-red-600 bg-opacity-40 text-red-200 border border-red-500 border-opacity-30' 
+                          : 'bg-green-600 bg-opacity-40 text-green-200 border border-green-500 border-opacity-30'
+                      }`}>
+                        {heir.claimed ? '❌ Claimed' : '✓ Active'}
+                      </span>
+                    </div>
+                  </div>
+                  {!heir.claimed && !isEditing && (
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => {
+                          setEditingHeir(heir.address);
+                          setEditPoints(heir.points);
+                        }}
+                        disabled={loading}
+                        className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-500"
+                      >
+                        ✏️ Edit Points
+                      </button>
+                      <button
+                        onClick={() => handleRemoveHeir(heir.address)}
+                        disabled={loading}
+                        className="flex-1 px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-500"
+                      >
+                        🗑️ Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 });
 
-const VaultSettings = memo(({ contract, initialized, onSuccess }: { contract: any; initialized: boolean; onSuccess: () => void }) => {
+const VaultSettings = memo(({ contract, account, initialized, onSuccess }: { contract: any; account: string | null; initialized: boolean; onSuccess: () => void }) => {
   const [days, setDays] = useState('30');
   const [loading, setLoading] = useState(false);
 
   const handleInitialize = async () => {
-    if (!contract || !days) return;
+    if (!contract || !days || !account) return;
     try {
       setLoading(true);
       const seconds = BigInt(days) * BigInt(24) * BigInt(3600);
-      const tx = await contract.initialize(seconds);
-      await tx.wait();
-      alert('Vault initialized successfully!');
+      
+      if (initialized) {
+        // Update existing vault's inactivity period
+        const tx = await contract.updateInactivityPeriod(account, seconds);
+        await tx.wait();
+        alert('✅ Inactivity period updated successfully!');
+      } else {
+        // Create new vault
+        const tx = await contract.createVault(seconds);
+        await tx.wait();
+        alert('✅ Vault created successfully!');
+      }
+      
       onSuccess();
     } catch (error) {
-      console.error('Initialize failed:', error);
-      alert('Initialize failed');
+      console.error('Vault operation failed:', error);
+      alert('❌ Operation failed');
     } finally {
       setLoading(false);
     }
@@ -664,45 +549,40 @@ const VaultSettings = memo(({ contract, initialized, onSuccess }: { contract: an
 
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Vault Settings</h2>
-      {!initialized && (
-        <div className="bg-yellow-50 p-4 rounded-lg mb-4">
-          <p className="text-sm text-yellow-800">⚠️ Vault not initialized. Set inactivity period first.</p>
-        </div>
-      )}
-      <div className="space-y-2 mb-4">
-        <label className="block text-gray-700 font-semibold">Inactivity Period (days)</label>
-        <div className="flex items-center gap-2">
+      <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+        <span>⚙️</span> Vault Settings
+      </h2>
+      <div className="space-y-3 mb-4">
+        <label className="block text-gray-300 font-semibold">Inactivity Period</label>
+        <div className="bg-gray-700 bg-opacity-40 backdrop-blur-sm p-4 rounded-xl border border-gray-600 border-opacity-30">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-white font-bold text-2xl">{days}</span>
+            <span className="text-gray-300 text-sm">days</span>
+          </div>
           <input
             type="range"
             min="30"
             max="365"
             value={days}
             onChange={(e) => setDays(e.target.value)}
-            className="flex-1"
-            disabled={initialized}
+            className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-gray-400"
           />
-          <input
-            type="number"
-            placeholder="Days"
-            value={days}
-            onChange={(e) => setDays(e.target.value)}
-            className="input-field w-20"
-            min="30"
-            max="365"
-            disabled={initialized}
-          />
+          <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <span>30</span>
+            <span>180</span>
+            <span>365</span>
+          </div>
         </div>
-        <p className="text-xs text-gray-500">
-          Set how long the vault owner must be inactive before heirs can claim their inheritance (30-365 days)
+        <p className="text-xs text-gray-400">
+          🕒 Time the owner must be inactive before heirs can claim inheritance
         </p>
       </div>
       <button
         onClick={handleInitialize}
         className="btn-primary w-full"
-        disabled={loading || initialized || !days}
+        disabled={loading || !days}
       >
-        {loading ? 'Processing...' : initialized ? '✅ Vault Initialized' : 'Initialize Vault'}
+        {loading ? '⏳ Processing...' : initialized ? '🔄 Update Inactivity Period' : '🚀 Initialize Vault'}
       </button>
     </div>
   );
