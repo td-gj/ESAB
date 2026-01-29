@@ -51,7 +51,7 @@ const Home: FC = () => {
               <h3 className="font-bold text-white mb-1 flex items-center gap-2">
                 <span className="text-xl">💰</span> Flexible
               </h3>
-              <p className="text-sm text-gray-300">Support for ETH and any ERC20 tokens</p>
+              <p className="text-sm text-gray-300">Support for ETH</p>
             </div>
           </div>
           
