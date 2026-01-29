@@ -1,0 +1,8 @@
+../contracts
+../artifacts
+../cache
+../scripts
+../.env
+../.env.local
+../hardhat.config.js
+../package-lock.json
